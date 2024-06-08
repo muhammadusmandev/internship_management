@@ -21,5 +21,7 @@ Route::middleware('guest')->prefix('auth')->group( function () {
 });
 
 Route::middleware('auth:sanctum')->group( function () {
-
+    Route::prefix('auth')->group( function () {
+        Route::delete('logout', 'AuthController@logout')->name('logout');
+    });
 });

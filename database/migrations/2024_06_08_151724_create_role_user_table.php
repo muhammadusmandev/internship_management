@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users');
             $table->unsignedBigInteger('role_id');
             $table->foreign('role_id')->references('id')->on('roles');
-            $table->timestamp('deleted_at')->default(null);
+            $table->dateTime('deleted_at');
             $table->timestamps();
         });
     }

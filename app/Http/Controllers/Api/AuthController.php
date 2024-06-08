@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\{RegisterRequest, LoginRequest};
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use App\Models\{User, RoleUser};
+use Auth;
 use Hash;
 
 class AuthController extends Controller
@@ -25,20 +26,20 @@ class AuthController extends Controller
             $validated = $request->validated();
 
             $user = User::create([
-                'name' => $validated->name,
-                'email' => $validated->email,
-                'password' => Hash::make($validated->password)
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password'])
             ]);
 
             $role_user = RoleUser::create([
                 'user_id' => $user->id,
-                'role_id' => $validated->role_id
+                'role_id' => $validated['role_id']
             ]);
 
             $data = [
                 'name' => $user->name,
                 'email' => $user->email,
-                'role_id' => $validated->role_id,
+                'role_id' => $validated['role_id'],
                 'tokenType' => 'Bearer',
                 'token' => $user->createToken('token')->plainTextToken
             ];
@@ -49,7 +50,7 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ];
 
-            return $this->errorResponse($errors, 'Something went wrong!');
+            return $this->errorResponse($errors, 'Something went wrong!', 500);
         }
     }
 
@@ -58,16 +59,34 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\Request
      */
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
         try{
-            return $this->successResponse($data, 'User login successfully!');
-        } catch(\Exception $e){
-            $errors = [
-                'error' => $e->getMessage()
-            ];
+            $validated = $request->validated();
 
-            return $this->errorResponse($errors, 'Something went wrong!');
+            $user = User::where('email', $validated['email'])->first();
+            
+            if ($user) {
+                if(Hash::check($validated['password'], $user->password)){
+                    $data = [
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'tokenType' => 'Bearer',
+                        'token' => $user->createToken('token')->plainTextToken
+                    ];
+
+                    return $this->successResponse($data, 'User login successfully!');
+                }
+            }
+
+
+            $errors = ['error' => 'Your credentials are wrong!'];
+            return $this->errorResponse($errors, 'Something went wrong!' , 401);
+
+        } catch(\Exception $e){
+            $errors = ['error' => $e->getMessage()];
+
+            return $this->errorResponse($errors, 'Something went wrong!', 500);
         }
     }
 
@@ -76,8 +95,18 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\Request
      */
-    public function logout(Request $request): JsonResponse
+    public function logout(): JsonResponse
     {
-        
+        try{
+            Auth::user()->currentAccessToken()->delete();;
+
+            return $this->successResponse([], 'User logout successfully!');
+                
+
+        } catch(\Exception $e){
+            $errors = ['error' => $e->getMessage()];
+
+            return $this->errorResponse($errors, 'Something went wrong!', 500);
+        }
     }
 }
